@@ -1,5 +1,3 @@
-# bubbles-emotion-chat
-
 # bubbles-emotion-chat — AI Emotion Journal Chat
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  
