@@ -153,4 +153,4 @@ jobs:
 - 이상 감정 탐지 알림  
 
 ## 라이선스
-MIT License © 2025 [당신의 이름 또는 조직명]
+MIT License © 2025 [AID]
