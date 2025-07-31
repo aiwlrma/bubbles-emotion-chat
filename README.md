@@ -154,3 +154,161 @@ jobs:
 
 ## 라이선스
 MIT License © 2025 [AID]
+
+
+# bubbles-emotion-chat — AI Emotion Journal Chat
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  
+[![Python](https://img.shields.io/badge/python-3.9%2B-important)]()  
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-orange)]()  
+[![OpenAI](https://img.shields.io/badge/LLM-OpenAI-lightgrey)]()
+
+> **“Hear a child’s emotions and deliver practical, warm guidance to parents.”**  
+> A Streamlit-based RAG + LLM emotion journaling, dashboard & chat platform.
+
+## Overview
+`bubbles-emotion-chat` ingests a child's daily conversation in real time, performs multi-layered emotion analysis, and provides personalized advice and a PDF report to parents. It ensembles a local emotion classification model, rule-based keyword signals, and OpenAI API outputs, and uses RAG context to generate parent-facing explanations. The UI is built with Streamlit, and it auto-generates Korean-supporting PDF emotion summaries.
+
+## Folder / Module Layout (current)
+```
+streamlit/
+│
+├── app.py                # Entry point: initialize session and render UI
+├── emotion.py            # Emotion classification model loading, keyword rules, OpenAI API ensemble logic
+├── rag.py                # Localization / string templates (currently holds translation strings)
+├── ui.py                 # Full Streamlit UI (child/parent modes, dashboard, inputs, action buttons)
+├── i18n.py               # OpenAI client, tokenizer/model loader, and enhanced emotion classification (consider refactoring)
+├── session.py            # Session state management, RAG document loading, report generation, PDF creation, parent auth
+├── style.py              # CSS injection and base session setup (mode, authentication, etc.)
+├── requirements.txt      # Python dependencies
+├── best_model.pt         # Optional fine-tuned checkpoint for local emotion classification
+├── .env                  # Environment variables (should be private)
+└── rag/                  # Custom RAG context documents (.txt)
+    └── ... (e.g., positive_reinforcement.txt, negative_support.txt)
+```
+
+## Key Features
+- **Child Mode**: Presents daily question, accepts child’s response, classifies emotion via keyword rules + local model + OpenAI API, maintains conversation history.  
+- **Parent Mode**: Parent authentication, daily emotion statistics/trends, recent conversation summary, AI-generated personalized advice, PDF report download.  
+- **RAG-based Advice**: Uses built-in and user-provided `.txt` guidance documents under `rag/` as context to generate parent recommendations.  
+- **PDF Report**: Auto-generates a Korean-friendly emotion summary report using Noto Sans KR font.  
+- **Local + API Ensemble Emotion Classification**: Integrates keyword heuristics, Transformer model predictions, and OpenAI GPT API outputs to decide final emotion.  
+- **Localization & Copy Management**: String templates managed in `rag.py` with room for extension.
+
+## Quick Start
+
+### 1. Clone
+```bash
+git clone https://github.com/<your-org>/bubbles-emotion-chat.git
+cd bubbles-emotion-chat/streamlit
+```
+
+### 2. Virtual Environment & Install
+```bash
+python -m venv venv
+# macOS/Linux
+source venv/bin/activate
+# Windows
+# .\venv\Scripts\activate
+
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment Variables
+Create or edit `.env` (keep an example as `.env.example`, do not commit real secrets):
+```env
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxx
+PARENT_CODE=1234
+```
+
+### 4. Prepare Resources
+- `best_model.pt`: Optional local checkpoint for emotion classification (fallback to OpenAI if missing).  
+- Add guidance files under `rag/` (e.g., `positive_reinforcement.txt`, `negative_support.txt`).  
+- Ensure Korean PDF font is available (e.g., `NotoSansKR-Regular.ttf`) and paths in code are correct.
+
+### 5. Run
+```bash
+python app.py
+```
+or
+```bash
+streamlit run app.py
+```
+
+## Required Environment Variables
+| Name | Description |
+|------|-------------|
+| `OPENAI_API_KEY` | API key for OpenAI ChatCompletion |
+| `PARENT_CODE` | Simple code used for parent authentication (UI protection) |
+
+## Responsibility Separation & Refactor Suggestions
+- **`app.py`**: Bootstraps the app, initializes session, delegates to UI.  
+- **`emotion.py` / `i18n.py`**: Currently overlapping—recommend separating concerns: `emotion.py` for model & classification logic, and `i18n.py` for true internationalization/localization.  
+- **`session.py`**: Manages session keys/state, loads RAG documents, builds reports, creates PDFs, handles auth.  
+- **`ui.py`**: Controls screen flow, charts, conversation UI, report-related actions.  
+- **`style.py`**: Injects CSS and manages default session flags.  
+- **`rag/`**: Extendable text-based context for RAG.  
+- **`rag.py`**: String management/localization; can evolve into a proper i18n layer.
+
+## Deployment & CI/CD Recommendations
+- **Branching Strategy**: `main` (stable), `develop` (integration), `feature/*` (new work)  
+- **Versioning**: Use Semantic Versioning (e.g., `v1.0.0`)  
+- **CI Example**: Use GitHub Actions to run linting (`flake8`), optional type checking (`mypy`), and smoke tests.  
+- **Secret Management**: Never commit `.env`; store secrets (OpenAI key, parent code) in CI/CD secret stores.
+
+### Example GitHub Actions Workflow (`.github/workflows/ci.yml`)
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Lint
+        run: |
+          pip install flake8
+          flake8 .
+      - name: Type check (optional)
+        run: |
+          pip install mypy
+          mypy .
+```
+
+## Security & Privacy
+- `.env` contains sensitive data—ensure it's in `.gitignore` and never committed.  
+- Child conversation/emotion data is sensitive; consider encryption or strict access control when storing/transmitting.  
+- Monitor OpenAI API usage, handle failures, and detect anomalous traffic.
+
+## Contributing
+1. Fork the repository  
+2. Create a `feature/xxx` branch  
+3. Write meaningful commit messages (Conventional Commits recommended)  
+4. Open a Pull Request  
+5. Address review feedback and merge  
+
+## Commit Message Examples
+- `feat: add PDF report download button`  
+- `fix: handle missing environment variable gracefully`  
+- `refactor: separate localization from core logic`  
+- `docs: update README for bubbles-emotion-chat structure`  
+
+## Future Improvements
+- Strengthen parent login/session (JWT, OAuth)  
+- Multi-dimensional / personalized emotion classification (intensity, composite emotions)  
+- Automatic conversation summarization and highlight extraction (additional RAG layer)  
+- Anomaly detection and alerts for unusual emotional patterns  
+
+## License
+MIT License © 2025 [AID]
+
