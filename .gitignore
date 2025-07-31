@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 best_model.pt
+.env
+__pycache__/
+*.pyc
+best_model.pt
