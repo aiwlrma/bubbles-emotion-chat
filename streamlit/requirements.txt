@@ -1,0 +1,28 @@
+# Core Framework
+streamlit>=1.28.0
+
+# Environment and Configuration
+python-dotenv>=1.0.0
+
+# AI and Machine Learning
+openai>=1.0.0
+transformers>=4.30.0
+torch>=2.0.0
+
+# Data Visualization
+plotly>=5.15.0
+
+# PDF Generation
+reportlab>=4.0.0
+Pillow>=10.0.0
+
+# Internationalization
+gettext
+
+# Standard Library (included with Python)
+# - os
+# - io
+# - json
+# - random
+# - datetime
+# - date 
