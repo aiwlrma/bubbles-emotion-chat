@@ -8,11 +8,37 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import io
-import json  # ← 추가
-import streamlit as st  # ← 추가
-from openai import OpenAI  # ← 추가
+import json
+import streamlit as st
+from openai import OpenAI
+from openai.error import OpenAIError, AuthenticationError
+from dotenv import load_dotenv
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# 로컬 개발용: .env에서 불러오기 (Cloud에서는 시크릿이 우선)
+load_dotenv()
+
+@st.cache_resource(show_spinner=False)
+def get_openai_client():
+    """
+    Streamlit secrets 또는 환경변수에서 OPENAI_API_KEY를 가져와 OpenAI 클라이언트를 반환.
+    없으면 None을 반환하고 UI에 에러를 띄움.
+    """
+    api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key or not api_key.strip():
+        st.error("OpenAI API 키가 설정되지 않았습니다. Streamlit Secrets 또는 환경변수 OPENAI_API_KEY에 설정해 주세요.")
+        return None
+
+    api_key = api_key.strip()
+    if not api_key.startswith("sk-"):
+        st.warning("OpenAI API 키 형식이 일반적인 sk-로 시작하지 않습니다. 키를 확인해 주세요.")
+
+    try:
+        client = OpenAI(api_key=api_key)
+        return client
+    except OpenAIError as e:
+        st.error(f"OpenAI 클라이언트 생성 실패: {e}")
+        return None
+
 
 def load_rag_documents(rag_folder):
     EMOTION_GUIDANCE_DOCS = {
@@ -30,87 +56,114 @@ def load_rag_documents(rag_folder):
                     EMOTION_GUIDANCE_DOCS[key] = file.read().strip()
     return EMOTION_GUIDANCE_DOCS
 
+
 def generate_rag_based_report(history_data, rag_docs):
-    # API 키 확인 추가
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        st.error("OpenAI API 키가 설정되지 않았습니다.")
+    client = get_openai_client()
+    if client is None:
         return "API 키 설정 필요"
-    
+
     if not history_data:
         return "아직 오늘 아이의 답변이 없습니다."
-    
+
     positive_count = sum(1 for h in history_data if h["emotion"] == "Positive")
     negative_count = len(history_data) - positive_count
     pos_ratio = (positive_count / len(history_data) * 100) if history_data else 0
-    
+
     relevant_docs = []
     if pos_ratio >= 70:
-        relevant_docs.append(rag_docs["positive_reinforcement"])
+        relevant_docs.append(rag_docs.get("positive_reinforcement", ""))
     if negative_count > 0:
-        relevant_docs.append(rag_docs["negative_support"])
-    relevant_docs.append(rag_docs["conversation_tips"])
-    
-    context = "\n\n".join(relevant_docs)
-    conversations = "\n".join([f"- {h['timestamp'].split()[1]}: {h['answer']} (감정: {h['emotion']})" for h in history_data[:5]])
-    
-    prompt = f"""
-    다음 가이드라인을 참고하여 부모님을 위한 맞춤형 조언을 작성해주세요:
-    [가이드라인]\n{context}
-    [오늘의 아이 대화 기록]\n{conversations}
-    [감정 분석 결과]\n- 긍정: {positive_count}회 ({pos_ratio:.0f}%)\n- 부정: {negative_count}회
-    위 정보를 바탕으로 부모님께 다음 내용을 포함한 조언을 해주세요:
-    1. 오늘 아이의 감정 상태 요약
-    2. 구체적인 대화 방법 3가지
-    3. 주의사항 및 권장사항
-    따뜻하고 실용적인 조언으로 작성해주세요.
-    """
+        relevant_docs.append(rag_docs.get("negative_support", ""))
+    relevant_docs.append(rag_docs.get("conversation_tips", ""))
 
-    
+    context = "\n\n".join(filter(None, relevant_docs))
+    conversations = "\n".join([f"- {h['timestamp'].split()[1]}: {h['answer']} (감정: {h['emotion']})" for h in history_data[:5]])
+
+    prompt = f"""
+다음 가이드라인을 참고하여 부모님을 위한 맞춤형 조언을 작성해주세요:
+[가이드라인]\n{context}
+[오늘의 아이 대화 기록]\n{conversations}
+[감정 분석 결과]\n- 긍정: {positive_count}회 ({pos_ratio:.0f}%)\n- 부정: {negative_count}회
+위 정보를 바탕으로 부모님께 다음 내용을 포함한 조언을 해주세요:
+1. 오늘 아이의 감정 상태 요약
+2. 구체적인 대화 방법 3가지
+3. 주의사항 및 권장사항
+따뜻하고 실용적인 조언으로 작성해주세요.
+"""
+
     try:
-        response = client.chat.completions.create(model="gpt-3.5-turbo", messages=[{"role": "user", "content": prompt}], temperature=0.3, max_tokens=1000)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=1000,
+        )
         return response.choices[0].message.content.strip()
-    except:
+    except AuthenticationError:
+        st.error("OpenAI 인증 실패: API 키가 유효한지 확인해주세요.")
+        return "API 인증 실패"
+    except OpenAIError as e:
+        st.error(f"OpenAI 요청 중 오류 발생: {e}")
         return "리포트 생성에 실패했습니다."
 
+
 def create_pdf_report(history_data, report_content, font_path):
-    # date import 추가 필요
-    from datetime import date  # ← 파일 상단에 추가하거나 여기에 추가
-    
+    from datetime import date
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, encoding='UTF-8')
     story = []
-    
+
     try:
         pdfmetrics.registerFont(TTFont('NotoSansCJKkr', font_path))
     except Exception as e:
         st.error(f"폰트 파일을 로드하지 못했습니다: {e}. 'NotoSansKR-Regular' 파일을 경로에 추가하세요.")
         return None
-    
-    
+
     styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#6366f1'), alignment=TA_CENTER, spaceAfter=30, fontName='NotoSansCJKkr')
-    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=16, textColor=colors.HexColor('#4f46e5'), spaceAfter=12, fontName='NotoSansCJKkr')
-    normal_style = ParagraphStyle('CustomNormal', parent=styles['Normal'], fontSize=11, leading=16, fontName='NotoSansCJKkr')
-    
+
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#6366f1'),
+        alignment=TA_CENTER,
+        spaceAfter=30,
+        fontName='NotoSansCJKkr'
+    )
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#4f46e5'),
+        spaceAfter=12,
+        fontName='NotoSansCJKkr'
+    )
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=11,
+        leading=16,
+        fontName='NotoSansCJKkr'
+    )
+
     story.append(Paragraph("Child Emotion Report", title_style))
     story.append(Paragraph(f"{date.today().strftime('%Y-%m-%d')}", normal_style))
-    story.append(Spacer(1, 0.5*inch))
-    
+    story.append(Spacer(1, 0.5 * inch))
+
     story.append(Paragraph("Today's Summary", heading_style))
     positive_count = sum(1 for h in history_data if h["emotion"] == "Positive")
     negative_count = len(history_data) - positive_count
-    total = len(history_data)
-    
+    total = len(history_data) if history_data else 0
+
     summary_data = [
         ['Category', 'Value'],
         ['Total Conversations', str(total)],
-        ['Positive Emotions', f"{positive_count} ({positive_count/total*100:.0f}%)"],
-        ['Negative Emotions', f"{negative_count} ({negative_count/total*100:.0f}%)"]
+        ['Positive Emotions', f"{positive_count} ({(positive_count / total * 100):.0f}%)" if total else "0 (0%)"],
+        ['Negative Emotions', f"{negative_count} ({(negative_count / total * 100):.0f}%)" if total else "0 (0%)"]
     ]
-    
-    summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+
+    summary_table = Table(summary_data, colWidths=[3 * inch, 2 * inch])
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e7ff')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),
@@ -120,29 +173,25 @@ def create_pdf_report(history_data, report_content, font_path):
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('GRID', (0, 0), (-1, -1), 1, colors.grey)
     ]))
-    
+
     story.append(summary_table)
-    story.append(Spacer(1, 0.5*inch))
-    
+    story.append(Spacer(1, 0.5 * inch))
+
     story.append(Paragraph("Conversation History", heading_style))
     for i, item in enumerate(history_data[:10], 1):
         time = item['timestamp'].split()[1]
         emotion = "Positive" if item["emotion"] == "Positive" else "Negative"
-        confidence = item['confidence']
-        conv_text = f"<b>{i}. Time:</b> {time} | <b>Emotion:</b> {emotion} ({confidence:.1%})<br/><b>Content:</b> {item['answer']}<br/><br/>"
+        confidence = item.get('confidence', 0)
+        conv_text = (
+            f"<b>{i}. Time:</b> {time} | <b>Emotion:</b> {emotion} ({confidence:.1%})"
+            f"<br/><b>Content:</b> {item['answer']}<br/><br/>"
+        )
         story.append(Paragraph(conv_text, normal_style))
-    
+
     if report_content:
         story.append(Paragraph("AI Recommendations", heading_style))
         story.append(Paragraph(report_content, normal_style))
-    
+
     doc.build(story)
     buffer.seek(0)
     return buffer
-
-import streamlit as st
-import os
-
-st.write("st.secrets keys:", list(st.secrets.keys()))
-st.write("Has OPENAI_API_KEY in st.secrets?", "OPENAI_API_KEY" in st.secrets)
-st.write("OPENAI_API_KEY in env?", bool(os.getenv("OPENAI_API_KEY")))
