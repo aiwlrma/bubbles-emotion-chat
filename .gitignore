@@ -6,3 +6,4 @@ best_model.pt
 __pycache__/
 *.pyc
 best_model.pt
+.streamlit/secrets.toml
