@@ -139,3 +139,10 @@ def create_pdf_report(history_data, report_content, font_path):
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+import streamlit as st
+import os
+
+st.write("st.secrets keys:", list(st.secrets.keys()))
+st.write("Has OPENAI_API_KEY in st.secrets?", "OPENAI_API_KEY" in st.secrets)
+st.write("OPENAI_API_KEY in env?", bool(os.getenv("OPENAI_API_KEY")))
