@@ -7,7 +7,19 @@ from datetime import date, datetime
 
 # Try to import modules with error handling
 try:
-    from emotion import load_model_and_tokenizer, enhanced_emotion_classification, client
+    from emotion import load_model_and_tokenizer, enhanced_emotion_classification
+    # Import client separately as it might not be available
+    try:
+        from emotion import client
+    except ImportError:
+        # Create a fallback OpenAI client
+        try:
+            from openai import OpenAI
+            import os
+            OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+            client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+        except:
+            client = None
 except ImportError as e:
     st.error(f"Could not import emotion module: {e}")
     # Provide fallback functions
