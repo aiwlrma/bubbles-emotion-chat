@@ -175,7 +175,7 @@ def render_metrics(total, positive, negative, pos_ratio, avg_confidence):
             f'<div class="metric-card">'
             f'<div class="metric-label">{t("parent.metric.positive")}</div>'
             f'<div class="metric-value" style="color: #10b981;">{positive}</div>'
-            f'<div class="metric-label">{t("parent.metric.percent", value=pos_ratio)}%</div>'
+            f'<div class="metric-label">{t("parent.metric.percent", value=int(pos_ratio))}%</div>'
             f'</div>', 
             unsafe_allow_html=True
         )
@@ -184,7 +184,7 @@ def render_metrics(total, positive, negative, pos_ratio, avg_confidence):
             f'<div class="metric-card">'
             f'<div class="metric-label">{t("parent.metric.negative")}</div>'
             f'<div class="metric-value" style="color: #ef4444;">{negative}</div>'
-            f'<div class="metric-label">{t("parent.metric.percent", value=100-pos_ratio)}%</div>'
+            f'<div class="metric-label">{t("parent.metric.percent", value=int(100-pos_ratio))}%</div>'
             f'</div>', 
             unsafe_allow_html=True
         )
@@ -195,7 +195,7 @@ def render_metrics(total, positive, negative, pos_ratio, avg_confidence):
             f'<div class="metric-card">'
             f'<div class="metric-label">{t("parent.metric.mood")}</div>'
             f'<div class="metric-value" style="color: {color}; font-size: 1.5rem;">{mood}</div>'
-            f'<div class="metric-label">{t("parent.metric.confidence", value=avg_confidence)}%</div>'
+            f'<div class="metric-label">{t("parent.metric.confidence", value=int(avg_confidence))}%</div>'
             f'</div>', 
             unsafe_allow_html=True
         )
