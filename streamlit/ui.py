@@ -3,16 +3,18 @@ import random
 import os
 from dotenv import load_dotenv
 import plotly.graph_objects as go
+from datetime import date, datetime
+
+# Load environment variables first
+load_dotenv()
+PARENT_CODE = os.getenv("PARENT_CODE", "1234")
+
+# Import other modules after basic setup
 from emotion import load_model_and_tokenizer, enhanced_emotion_classification, get_openai_client
 from rag import load_rag_documents, generate_rag_based_report, create_pdf_report
 from session import reset_session, get_session_key
 from i18n import t
 from style import render_css
-from datetime import date, datetime
-
-# Load environment variables
-load_dotenv()
-PARENT_CODE = os.getenv("PARENT_CODE", "1234")  # Default to "1234" if not set in .env
 
 def get_today_question():
     today = date.today().isoformat()
