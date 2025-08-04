@@ -2,7 +2,6 @@ import gettext
 
 # Set up translation
 translator = gettext.translation('messages', localedir='locales', languages=['ko'], fallback=True)
-t = translator.gettext
 
 # Translation strings
 strings = {
@@ -27,9 +26,9 @@ strings = {
         "parent.metric.total": "총 대화",
         "parent.metric.positive": "긍정",
         "parent.metric.negative": "부정",
-        "parent.metric.percent": "{value}%",  # Changed from "{}%" to "{value}%"
+        "parent.metric.percent": "{value}",
         "parent.metric.mood": "기분",
-        "parent.metric.confidence": "{value}%",  # Changed from "{}%" to "{value}%"
+        "parent.metric.confidence": "{value}",
         "parent.metric.count": "회",
         "parent.mood.good": "좋음",
         "parent.mood.neutral": "보통",
@@ -74,6 +73,13 @@ strings = {
 
 # Custom t function to handle dictionary-based translations
 def t(key, **kwargs):
-    if key in strings.get('ko', {}):
-        return strings['ko'][key].format(**kwargs)
-    return translator.gettext(key).format(**kwargs)
+    """번역 함수 - 주어진 키에 해당하는 한국어 텍스트를 반환합니다."""
+    text = strings.get('ko', {}).get(key, key)
+    
+    # kwargs가 있을 때만 format 적용
+    if kwargs:
+        try:
+            return text.format(**kwargs)
+        except Exception:
+            return text
+    return text
