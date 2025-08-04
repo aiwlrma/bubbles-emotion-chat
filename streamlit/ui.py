@@ -17,11 +17,7 @@ PARENT_CODE = os.getenv("PARENT_CODE", "1234")  # Default to "1234" if not set i
 def get_today_question():
     today = date.today().isoformat()
     key = get_session_key("today_question")
-    date_key = get_session_key("question_date")
-    if key not in st.session_state or st.session_state.get(date_key) != today:
-        questions = get_questions()
-        question = random.choice(questions)
-        st.session_state[key] = question
+    date_key = get_session_key("question_date")render_actions
         st.session_state[date_key] = today
     return st.session_state[key]
 
@@ -175,35 +171,36 @@ def render_conversations(today_data):
 def render_actions(today_data, rag_docs, font_path):
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
-    with col1: 
+    with col1:
         if st.button(t("parent.guide_button"), use_container_width=True):
-            with st.spinner(t("parent.processing")): st.session_state[get_session_key("ai_report")] = generate_rag_based_report(today_data, rag_docs)
+            with st.spinner(t("parent.processing")):
+                st.session_state[get_session_key("ai_report")] = generate_rag_based_report(today_data, rag_docs)
     with col2:
         if st.button(t("parent.pdf_button"), use_container_width=True):
-            report_content = st.session_state.get(get_session_key("ai_report"), generate_rag_based_report(today_data, rag_docs))
+            report_content = st.session_state.get(
+                get_session_key("ai_report"),
+                generate_rag_based_report(today_data, rag_docs),
+            )
             pdf_buffer = create_pdf_report(today_data, report_content, font_path)
-            st.download_button(label=t("parent.download"), data=pdf_buffer, file_name=f"emotion_report_{date.today().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
-    with col3: 
-        if st.button(t("parent.refresh"), use_container_width=True): st.rerun()
-    
+            if pdf_buffer is None:
+                st.error("PDF 생성에 실패했습니다.")
+            else:
+                try:
+                    st.download_button(
+                        label=t("parent.download"),
+                        data=pdf_buffer.getvalue(),  # BytesIO → bytes
+                        file_name=f"emotion_report_{date.today().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"다운로드 처리 중 오류 발생: {e}")
+    with col3:
+        if st.button(t("parent.refresh"), use_container_width=True):
+            st.rerun()
+
     if st.session_state.get(get_session_key("ai_report")):
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### 🌟 " + t("parent.advice"))
         st.write(st.session_state[get_session_key("ai_report")])
         st.markdown('</div>', unsafe_allow_html=True)
-
-def require_parent_auth():
-    if not st.session_state.get(get_session_key("parent_authenticated"), False):
-        st.markdown(t("auth.container"), unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            code = st.text_input(t("auth.code"), type="password", placeholder="****", label_visibility="hidden")
-            if st.button(t("auth.submit"), use_container_width=True):
-                if code == PARENT_CODE:
-                    st.session_state[get_session_key("parent_authenticated")] = True
-                    st.success(t("auth.success"))
-                    st.rerun()
-                else:
-                    st.error(t("auth.failure"))
-        return False
-    return True
