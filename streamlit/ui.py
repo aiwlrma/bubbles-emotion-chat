@@ -161,3 +161,26 @@ def calculate_metrics(today_data):
     pos_ratio = (positive / total * 100) if total > 0 else 0
     avg_confidence = (sum(h.get("confidence", 0) for h in filtered) / total) if total > 0 else 0
     return total, positive, negative, pos_ratio, avg_confidence
+
+def require_parent_auth():
+    parent_code = os.getenv("PARENT_CODE", "1234")
+    if not st.session_state.get(get_session_key("parent_authenticated"), False):
+        st.markdown(t("auth.container"), unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            code = st.text_input(
+                t("auth.code"),
+                type="password",
+                placeholder="****",
+                label_visibility="hidden",
+                key="parent_auth_code",
+            )
+            if st.button(t("auth.submit"), use_container_width=True):
+                if code == parent_code:
+                    st.session_state[get_session_key("parent_authenticated")] = True
+                    st.success(t("auth.success"))
+                    st.experimental_rerun()
+                else:
+                    st.error(t("auth.failure"))
+        return False
+    return True
