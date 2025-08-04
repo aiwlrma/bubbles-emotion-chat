@@ -6,6 +6,10 @@ import torch
 import torch.nn.functional as F
 import json
 import re
+import warnings
+
+# 경고 메시지 숨기기
+warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
 
 load_dotenv()
 
@@ -41,17 +45,39 @@ def get_openai_client():
 # 감정 분류 모델/토크나이저 로드
 def load_model_and_tokenizer():
     """감정 분류 모델과 토크나이저를 로드합니다."""
+    import logging
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+    
     try:
         model_path = os.path.join(os.path.dirname(__file__), "best_model.pt")
-        config = AutoConfig.from_pretrained("klue/bert-base", num_labels=2)
         tokenizer = AutoTokenizer.from_pretrained("klue/bert-base")
-        model = AutoModelForSequenceClassification.from_pretrained("klue/bert-base", config=config)
         
+        # 먼저 모델이 있는지 확인
         if os.path.exists(model_path):
-            state = torch.load(model_path, map_location="cpu")
+            # 저장된 모델이 있으면 config와 함께 로드
+            config = AutoConfig.from_pretrained("klue/bert-base", num_labels=2)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    "klue/bert-base", 
+                    config=config, 
+                    ignore_mismatched_sizes=True
+                )
+            
+            # 저장된 가중치 로드
+            state = torch.load(model_path, map_location="cpu", weights_only=True)
             if "state_dict" in state:
                 state = state["state_dict"]
             model.load_state_dict(state, strict=False)
+        else:
+            # 모델 파일이 없으면 pretrained 모델 사용
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    "klue/bert-base", 
+                    num_labels=2, 
+                    ignore_mismatched_sizes=True
+                )
         
         model.eval()
         return tokenizer, model
