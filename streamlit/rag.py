@@ -284,10 +284,41 @@ def create_pdf_report(history_data, report_content, font_path):
     if report_content and report_content.strip():
         story.append(Spacer(1, 0.3*inch))
         story.append(Paragraph("AI Recommendations", heading_style))
-        # Clean up the report content for PDF
-        clean_content = report_content.replace('**', '<b>').replace('**', '</b>')
-        clean_content = clean_content.replace('*', '•')
-        story.append(Paragraph(clean_content, normal_style))
+        
+        # Clean up the report content for PDF - handle markdown properly
+        clean_content = report_content
+        
+        # Handle bold text: **text** -> <b>text</b>
+        import re
+        clean_content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', clean_content)
+        
+        # Handle single asterisks for bullets
+        clean_content = re.sub(r'^\* ', '• ', clean_content, flags=re.MULTILINE)
+        clean_content = re.sub(r'\n\* ', '\n• ', clean_content)
+        
+        # Handle emojis and special characters that might cause issues
+        clean_content = clean_content.replace('📊', '').replace('💡', '').replace('🌟', '')
+        clean_content = clean_content.replace('😊', '').replace('😐', '').replace('😟', '')
+        
+        # Handle line breaks properly
+        clean_content = clean_content.replace('\n\n', '<br/><br/>')
+        clean_content = clean_content.replace('\n', '<br/>')
+        
+        # Remove any remaining problematic characters
+        clean_content = re.sub(r'[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ<>/\-•.,!?():"]', '', clean_content)
+        
+        # Split into paragraphs to avoid long content issues
+        paragraphs = clean_content.split('<br/><br/>')
+        for para in paragraphs:
+            if para.strip():
+                try:
+                    story.append(Paragraph(para.strip(), normal_style))
+                    story.append(Spacer(1, 6))
+                except Exception as e:
+                    # If paragraph fails, add as plain text
+                    plain_text = re.sub(r'<[^>]+>', '', para.strip())
+                    story.append(Paragraph(plain_text, normal_style))
+                    story.append(Spacer(1, 6))
     
     try:
         doc.build(story)
