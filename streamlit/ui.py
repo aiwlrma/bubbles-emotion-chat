@@ -97,7 +97,7 @@ def render_child_mode(tokenizer, model):
                     "confidence": confidence
                 })
                 messages = [{"role": "system", "content": t("child.system_prompt")}, *st.session_state[get_session_key("chat_history")]]
-                response = client.chat.completions.create(model="gpt-3.5-turbo", messages=messages, temperature=0.8, max_tokens=150)
+                response = client.chat.completions.create(model="gpt-3.5-turbo", messages=messages, temperature=0.8, max_tokens=500)
                 bot_response = response.choices[0].message.content.strip()
                 st.session_state[get_session_key("chat_history")].append({"role": "assistant", "content": bot_response})
             st.rerun()
