@@ -10,6 +10,7 @@ import re
 
 load_dotenv()
 
+# OpenAI 클라이언트 반환 (키 없으면 중단)
 @st.cache_resource(show_spinner=False)
 def get_openai_client():
     api_key = None
@@ -25,11 +26,12 @@ def get_openai_client():
         st.stop()
     if not api_key.startswith("sk-"):
         st.warning("API 키 형식이 평소와 다릅니다. 제대로 된 키인지 확인하세요.")
-    # 디버그용 마스킹 출력 (배포 시 제거)
+    # (배포 시 제거해도 되는) 마스킹된 디버그
     masked = api_key[:4] + "*" * (len(api_key) - 8) + api_key[-4:]
     st.write("사용 중인 OpenAI 키 (마스킹):", masked)
     return OpenAI(api_key=api_key)
 
+# 감정 분류 모델/토크나이저 로드
 @st.cache_resource(show_spinner=False)
 def load_model_and_tokenizer():
     try:
