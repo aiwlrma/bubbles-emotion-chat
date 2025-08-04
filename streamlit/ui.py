@@ -42,6 +42,10 @@ def render_app():
     st.set_page_config(page_title=t("app.title"), page_icon="💝", layout="wide")
     render_css()
     
+    # 세션 초기화
+    from session import initialize_session
+    initialize_session()
+    
     tokenizer, model = load_model_and_tokenizer()
     rag_folder = os.path.join(os.path.dirname(__file__), "rag")
     rag_docs = load_rag_documents(rag_folder)
@@ -108,15 +112,22 @@ def render_child_mode(tokenizer, model):
                     {"role": "system", "content": t("child.system_prompt")}, 
                     *st.session_state[get_session_key("chat_history")]
                 ]
-                client = get_openai_client()
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo", 
-                    messages=messages, 
-                    temperature=0.8, 
-                    max_tokens=150
-                )
-                bot_response = response.choices[0].message.content.strip()
-                st.session_state[get_session_key("chat_history")].append({"role": "assistant", "content": bot_response})
+                try:
+                    client = get_openai_client()
+                    response = client.chat.completions.create(
+                        model="gpt-3.5-turbo", 
+                        messages=messages, 
+                        temperature=0.8, 
+                        max_tokens=150
+                    )
+                    bot_response = response.choices[0].message.content.strip()
+                    st.session_state[get_session_key("chat_history")].append({"role": "assistant", "content": bot_response})
+                except ValueError as e:
+                    st.error(f"API 키 오류: {e}")
+                    st.stop()
+                except Exception as e:
+                    bot_response = "죄송해요, 지금은 대답하기 어려워요. 잠시 후 다시 시도해주세요."
+                    st.session_state[get_session_key("chat_history")].append({"role": "assistant", "content": bot_response})
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
