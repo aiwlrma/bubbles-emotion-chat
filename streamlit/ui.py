@@ -438,32 +438,59 @@ def render_conversations(today_data):
 def render_actions(today_data, rag_docs, font_path):
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
+    
     with col1: 
-        if st.button(t("parent.guide_button"), use_container_width=True):
+        if st.button(t("parent.guide_button"), use_container_width=True, key="generate_guide"):
             with st.spinner(t("parent.processing")): 
-                report = generate_rag_based_report(today_data, rag_docs)
-                st.session_state[get_session_key("ai_report")] = report
+                try:
+                    report = generate_rag_based_report(today_data, rag_docs)
+                    st.session_state[get_session_key("ai_report")] = report
+                    st.success("AI 가이드가 생성되었습니다!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"가이드 생성 중 오류가 발생했습니다: {e}")
+    
     with col2:
-        if st.button(t("parent.pdf_button"), use_container_width=True):
-            report_content = st.session_state.get(get_session_key("ai_report"), generate_rag_based_report(today_data, rag_docs))
-            pdf_buffer = create_pdf_report(today_data, report_content, font_path)
-            st.download_button(
-                label=t("parent.download"), 
-                data=pdf_buffer, 
-                file_name=f"emotion_report_{date.today().strftime('%Y%m%d')}.pdf", 
-                mime="application/pdf", 
-                use_container_width=True
-            )
+        if st.button(t("parent.pdf_button"), use_container_width=True, key="create_pdf"):
+            with st.spinner("PDF 생성 중..."):
+                try:
+                    report_content = st.session_state.get(get_session_key("ai_report"))
+                    if not report_content:
+                        report_content = generate_rag_based_report(today_data, rag_docs)
+                    
+                    pdf_buffer = create_pdf_report(today_data, report_content, font_path)
+                    if pdf_buffer:
+                        st.download_button(
+                            label=t("parent.download"), 
+                            data=pdf_buffer, 
+                            file_name=f"emotion_report_{date.today().strftime('%Y%m%d')}.pdf", 
+                            mime="application/pdf", 
+                            use_container_width=True,
+                            key="download_pdf"
+                        )
+                    else:
+                        st.error("PDF 생성에 실패했습니다.")
+                except Exception as e:
+                    st.error(f"PDF 생성 중 오류가 발생했습니다: {e}")
+    
     with col3: 
-        if st.button(t("parent.refresh"), use_container_width=True): 
+        if st.button(t("parent.refresh"), use_container_width=True, key="refresh_data"): 
+            # Clear the AI report to force regeneration
+            ai_report_key = get_session_key("ai_report")
+            if ai_report_key in st.session_state:
+                del st.session_state[ai_report_key]
             st.rerun()
     
+    # Display AI report if available
     ai_report_key = get_session_key("ai_report")
     if st.session_state.get(ai_report_key):
         st.markdown('<div class="content-card">', unsafe_allow_html=True)
         st.markdown("### 🌟 " + t("parent.advice"))
         st.write(st.session_state[ai_report_key])
         st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        # Show a message encouraging to generate the guide
+        st.info("💡 'AI 가이드 보기' 버튼을 클릭하여 맞춤형 조언을 받아보세요!")
 
 def require_parent_auth():
     auth_key = get_session_key("parent_authenticated")
