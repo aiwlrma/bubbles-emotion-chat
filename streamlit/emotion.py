@@ -1,21 +1,39 @@
 import os
-from dotenv import load_dotenv
-from openai import OpenAI
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
-import torch
-import torch.nn.functional as F
 import json
 import re
 import warnings
 
+# 기본 라이브러리 먼저 import
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("Warning: python-dotenv not installed")
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+    print("Warning: openai not installed")
+
+try:
+    from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
+    import torch
+    import torch.nn.functional as F
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Warning: transformers or torch not installed")
+
 # 경고 메시지 숨기기
 warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
-
-load_dotenv()
 
 # OpenAI 클라이언트 반환 함수
 def get_openai_client():
     """OpenAI 클라이언트를 반환합니다. Streamlit 환경에서만 secrets를 확인합니다."""
+    if OpenAI is None:
+        raise ImportError("OpenAI 라이브러리가 설치되지 않았습니다.")
+    
     api_key = None
     
     # Streamlit이 import되어 있는 경우에만 secrets 확인
@@ -45,6 +63,10 @@ def get_openai_client():
 # 감정 분류 모델/토크나이저 로드
 def load_model_and_tokenizer():
     """감정 분류 모델과 토크나이저를 로드합니다."""
+    if not TRANSFORMERS_AVAILABLE:
+        print("Warning: Transformers not available, returning None")
+        return None, None
+    
     import logging
     logging.getLogger("transformers").setLevel(logging.ERROR)
     
